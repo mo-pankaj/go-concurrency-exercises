@@ -71,7 +71,7 @@ var fetchSignal chan bool
 func fetchSignalInstance() chan bool {
 	if fetchSignal == nil {
 		// Use buffered channel to avoid blocking
-		fetchSignal = make(chan bool, 1000)
+		fetchSignal = make(chan bool, 10000)
 	}
 	return fetchSignal
 }
