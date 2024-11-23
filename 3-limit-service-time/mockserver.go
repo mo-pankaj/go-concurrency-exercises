@@ -7,12 +7,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 )
 
 var wg sync.WaitGroup
+var userTime map[int]int64
 
 // RunMockServer pretends to be a video processing service. It
 // simulates user interacting with the Server.
@@ -38,8 +40,10 @@ func RunMockServer() {
 }
 
 func createMockRequest(pid int, fn func(), u *User) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	fmt.Println("UserID:", u.ID, "\tProcess", pid, "started.")
-	res := HandleRequest(fn, u)
+	res := HandleRequest(fn, u, ctx)
 
 	if res {
 		fmt.Println("UserID:", u.ID, "\tProcess", pid, "done.")

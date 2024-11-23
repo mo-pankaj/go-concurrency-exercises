@@ -19,12 +19,16 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"sync"
+	"time"
 )
 
 // SessionManager keeps track of all sessions from creation, updating
 // to destroying.
 type SessionManager struct {
+	mutex    *sync.Mutex
 	sessions map[string]Session
 }
 
@@ -36,21 +40,54 @@ type Session struct {
 // NewSessionManager creates a new sessionManager
 func NewSessionManager() *SessionManager {
 	m := &SessionManager{
+		mutex:    &sync.Mutex{},
 		sessions: make(map[string]Session),
 	}
+	go m.cleanSession()
 
 	return m
 }
 
+func (m *SessionManager) cleanSession() {
+	t := time.NewTicker(5 * time.Second)
+
+	f := func() {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		for k, v := range m.sessions {
+			updateTime, ok := v.Data["updated"]
+			if ok {
+				upd := updateTime.(time.Time)
+				fmt.Println("Session", k, "last updated at", time.Since(upd))
+				if time.Since(upd) > 5*time.Second {
+					fmt.Println("Session", k, "expired")
+					delete(m.sessions, k)
+				}
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-t.C:
+			f()
+		}
+	}
+}
+
 // CreateSession creates a new session and returns the sessionID
 func (m *SessionManager) CreateSession() (string, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	sessionID, err := MakeSessionID()
 	if err != nil {
 		return "", err
 	}
+	data := make(map[string]interface{})
+	data["updated"] = time.Now()
 
 	m.sessions[sessionID] = Session{
-		Data: make(map[string]interface{}),
+		Data: data,
 	}
 
 	return sessionID, nil
@@ -63,6 +100,8 @@ var ErrSessionNotFound = errors.New("SessionID does not exists")
 // GetSessionData returns data related to session if sessionID is
 // found, errors otherwise
 func (m *SessionManager) GetSessionData(sessionID string) (map[string]interface{}, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	session, ok := m.sessions[sessionID]
 	if !ok {
 		return nil, ErrSessionNotFound
@@ -72,6 +111,9 @@ func (m *SessionManager) GetSessionData(sessionID string) (map[string]interface{
 
 // UpdateSessionData overwrites the old session data with the new one
 func (m *SessionManager) UpdateSessionData(sessionID string, data map[string]interface{}) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	data["updated"] = time.Now()
 	_, ok := m.sessions[sessionID]
 	if !ok {
 		return ErrSessionNotFound

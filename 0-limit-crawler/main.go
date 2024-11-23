@@ -43,7 +43,6 @@ func Crawl(url string, depth int) {
 func main() {
 
 	ticker = time.NewTicker(1 * time.Second)
-	//wg.Add(1)
 	Crawl("http://golang.org/", 4)
 
 }

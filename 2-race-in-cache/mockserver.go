@@ -25,21 +25,19 @@ func RunMockServer(cache *KeyStoreCache, t *testing.T) {
 	for c := 0; c < cycles; c++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for i := 0; i < callsPerCycle; i++ {
-
 				wg.Add(1)
 				go func(i int) {
+					defer wg.Done()
 					value := cache.Get("Test" + strconv.Itoa(i))
 					if t != nil {
-						if value != "Test" + strconv.Itoa(i) {
+						if value != "Test"+strconv.Itoa(i) {
 							t.Errorf("Incorrect db response %v", value)
 						}
 					}
-					wg.Done()
 				}(i)
-
 			}
-			wg.Done()
 		}()
 	}
 

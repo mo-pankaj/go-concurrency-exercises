@@ -13,10 +13,24 @@
 
 package main
 
+import (
+	"context"
+	"os"
+	"os/signal"
+)
+
 func main() {
 	// Create a process
 	proc := MockProcess{}
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go func() {
+		<-c
+		cancelFunc()
+	}()
 
 	// Run the process (blocking)
-	proc.Run()
+	proc.Run(ctx)
 }

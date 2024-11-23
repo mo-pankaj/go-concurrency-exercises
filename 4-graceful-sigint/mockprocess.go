@@ -7,8 +7,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"time"
 )
 
@@ -18,13 +21,18 @@ type MockProcess struct {
 }
 
 // Run will start the process
-func (m *MockProcess) Run() {
+func (m *MockProcess) Run(ctx context.Context) {
 	m.isRunning = true
 
 	fmt.Print("Process running..")
 	for {
-		fmt.Print(".")
-		time.Sleep(1 * time.Second)
+		select {
+		case <-ctx.Done():
+			m.Stop()
+		default:
+			fmt.Print(".")
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
 
@@ -36,8 +44,14 @@ func (m *MockProcess) Stop() {
 	}
 
 	fmt.Print("\nStopping process..")
-	for {
-		fmt.Print(".")
-		time.Sleep(1 * time.Second)
-	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		fmt.Print("\nKilling process..")
+		os.Exit(0)
+	}()
+	fmt.Print(".")
+	time.Sleep(10 * time.Second)
+	os.Exit(0)
 }
